@@ -55,7 +55,8 @@ export interface HandValue {
 
 /**
  * Probabilities of each dealer final total, conditional on no dealer blackjack
- * when the hole card is unknown (US peek rules).
+ * whenever a dealer card is still unknown (US peek rules) - which covers both the
+ * one-upcard case and the no-cards-dealt prior.
  */
 export interface DealerOutcomes {
   readonly p17: number;
@@ -64,7 +65,7 @@ export interface DealerOutcomes {
   readonly p20: number;
   readonly p21: number;
   readonly pBust: number;
-  /** P(dealer blackjack). Nonzero only when exactly one dealer card is known. */
+  /** P(dealer blackjack). Zero once both dealer cards are known. */
   readonly pNatural: number;
   readonly conditionedOnNoNatural: boolean;
   readonly shoeExhausted: boolean;
@@ -146,8 +147,9 @@ export type AnalysisResult =
       readonly need: "playerCards" | "dealerCards";
       readonly shoe: ShoeInfo;
       readonly player: HandValue | null;
-      readonly dealer: DealerInfo | null;
-      readonly pDealerBlackjack: number | null;
+      /** Never null: with no dealer card this carries the pre-deal prior. */
+      readonly dealer: DealerInfo;
+      readonly pDealerBlackjack: number;
     }
   | {
       readonly status: "ok";

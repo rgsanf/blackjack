@@ -31,7 +31,7 @@ export function EvList({ actions, best }: EvListProps) {
               key={kind}
               className="flex items-center gap-2 rounded-lg px-3 py-2 opacity-70"
             >
-              <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-felt-700" aria-hidden="true" />
+              <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-onyx-700" aria-hidden="true" />
               <span className="font-sans text-xs uppercase tracking-wider text-ink-500">
                 {NAME[kind]}
               </span>
@@ -48,26 +48,26 @@ export function EvList({ actions, best }: EvListProps) {
             key={kind}
             className={
               isBest
-                ? "flex items-center gap-2 rounded-lg border border-brass-400 bg-brass-400/10 px-3 py-2"
+                ? "flex items-center gap-2 rounded-lg border border-gold-400 bg-gold-400/10 px-3 py-2"
                 : "flex items-center gap-2 rounded-lg border border-transparent px-3 py-2"
             }
           >
             <span
               className={`h-1.5 w-1.5 shrink-0 rounded-full ${
-                isBest ? "bg-brass-400" : "bg-felt-700"
+                isBest ? "bg-gold-400" : "bg-onyx-700"
               }`}
               aria-hidden="true"
             />
             <span
               className={`font-sans text-xs uppercase tracking-wider ${
-                isBest ? "font-semibold text-brass-300" : "text-ink-300"
+                isBest ? "font-semibold text-gold-300" : "text-ink-300"
               }`}
             >
               {NAME[kind]}
             </span>
             <output
               className={`ml-auto font-mono text-sm tabular-nums ${
-                isBest ? "font-semibold text-brass-300" : "text-ink-300"
+                isBest ? "font-semibold text-gold-300" : "text-ink-300"
               }`}
             >
               {fmtEv(a.ev)}
@@ -76,7 +76,7 @@ export function EvList({ actions, best }: EvListProps) {
               {/* Three redundant channels for "best" - chip, weight, border - so the
                   recommendation never depends on colour alone. */}
               {isBest ? (
-                <span className="rounded bg-brass-400 px-1.5 py-0.5 text-[10px] font-bold uppercase text-felt-950">
+                <span className="rounded bg-gold-400 px-1.5 py-0.5 text-[10px] font-bold uppercase text-onyx-950">
                   Best
                 </span>
               ) : null}

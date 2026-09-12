@@ -2,6 +2,7 @@
  * Shared helpers for the engine test suite. Not part of the public surface.
  */
 import { analyze } from "./analyze";
+import { INFINITE_P } from "./cards";
 import { cardFromLabel } from "./hand";
 import type {
   AnalysisResult,
@@ -25,13 +26,57 @@ export function hand(...labels: CardLabel[]): Card[] {
 export const SHOE = (decks: number): DeckMode => ({ kind: "shoe", decks });
 export const INFINITE: DeckMode = { kind: "infinite" };
 
-/** Dealer final-total distribution given only an upcard, as the published tables define it. */
-export function dealerTable(up: CardLabel, deck: DeckMode): DealerOutcomes {
-  const res = analyze({ deck, dealerCards: hand(up), playerCards: [] });
-  if (res.status !== "incomplete" || !res.dealer) {
+/**
+ * Dealer final-total distribution given only an upcard, as the published tables define
+ * it. `removed` shifts the shoe composition the way discards would.
+ */
+export function dealerTable(
+  up: CardLabel,
+  deck: DeckMode,
+  removed: CardLabel[] = [],
+): DealerOutcomes {
+  const res = analyze({
+    deck,
+    dealerCards: hand(up),
+    playerCards: [],
+    removedCards: hand(...removed),
+  });
+  if (res.status !== "incomplete") {
     throw new Error(`expected incomplete with dealer info, got ${res.status}`);
   }
   return res.dealer.outcomes;
+}
+
+/**
+ * The pre-deal prior: the dealer's final-total distribution with NO dealer card known.
+ * `removed` shifts the shoe composition the way discards or other players' cards would.
+ */
+export function priorTable(deck: DeckMode, removed: CardLabel[] = []): DealerOutcomes {
+  const res = analyze({
+    deck,
+    dealerCards: [],
+    playerCards: [],
+    removedCards: hand(...removed),
+  });
+  if (res.status !== "incomplete") {
+    throw new Error(`expected incomplete, got ${res.status}`);
+  }
+  return res.dealer.outcomes;
+}
+
+/** Root draw probability per rank bucket, matching what the engine sees at the root. */
+export function rootDrawP(deck: DeckMode, removed: CardLabel[] = []): number[] {
+  const res = analyze({
+    deck,
+    dealerCards: [],
+    playerCards: [],
+    removedCards: hand(...removed),
+  });
+  if (res.status !== "incomplete") throw new Error(`expected incomplete, got ${res.status}`);
+  const { counts, remaining, infinite } = res.shoe;
+  return infinite
+    ? INFINITE_P.slice()
+    : counts.map((c) => c / remaining);
 }
 
 /** [bust, 17, 18, 19, 20, 21] as percentages, matching the published table row order. */

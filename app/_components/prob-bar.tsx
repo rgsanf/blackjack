@@ -1,14 +1,18 @@
 import { pct } from "./format";
 
-export type Tone = "neutral" | "win" | "push" | "loss" | "bust" | "accent";
+export type Tone = "neutral" | "win" | "push" | "loss" | "bust";
 
+/**
+ * Dealer bust wears the WIN colour, not a caution colour: the dealer breaking is the
+ * best thing that can happen to the player, and the row already says so. It also keeps
+ * every outcome bar out of the yellow band, which belongs to the gold accent.
+ */
 const TONE_BG: Record<Tone, string> = {
-  neutral: "bg-ink-500",
+  neutral: "bg-bar-400",
   win: "bg-win-400",
   push: "bg-push-400",
   loss: "bg-loss-400",
-  bust: "bg-bust-400",
-  accent: "bg-brass-400",
+  bust: "bg-win-400",
 };
 
 export interface ProbBarProps {
@@ -37,7 +41,7 @@ export function ProbBar({ label, value, tone = "neutral", emphasis }: ProbBarPro
       >
         {label}
       </span>
-      <div className="h-2 overflow-hidden rounded-full bg-felt-700/70">
+      <div className="h-2 overflow-hidden rounded-full bg-onyx-800">
         <div
           className={`prob-fill h-full rounded-full ${TONE_BG[tone]} ${
             safe > 0 ? "min-w-[0.125rem]" : ""

@@ -189,6 +189,18 @@ export function reducer(
     }
 
     case "reset": {
+      // No-op guard, matching clearHand and clearDiscards: without it the button
+      // pushes an undo entry that restores a state identical to the current one.
+      const nothingToClear =
+        state.dealer.length === 0 &&
+        state.player.length === 0 &&
+        state.discards.every((n) => n === 0) &&
+        state.target === "dealer";
+      if (nothingToClear) return state;
+
+      // Deliberately keeps the deck count: that is a table setting, not hand state,
+      // and re-picking it after every round would be the most annoying thing this
+      // button could do.
       const fresh = createInitialState();
       return withHistory(state, { ...snapshot(fresh), decks: state.decks });
     }

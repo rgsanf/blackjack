@@ -1,4 +1,6 @@
 export { analyze } from "./analyze";
+export { PRE_DEAL, preDealBaseline } from "./baseline";
+export type { PreDealOutcome } from "./baseline-compute";
 export { RULES, RULES_SUMMARY, APPROXIMATIONS } from "./rules";
 export {
   ACE,

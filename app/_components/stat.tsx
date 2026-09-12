@@ -8,7 +8,7 @@ export interface StatProps {
 const TONE: Record<NonNullable<StatProps["tone"]>, string> = {
   neutral: "text-ink-100",
   positive: "text-win-400",
-  negative: "text-loss-400",
+  negative: "text-loss-300",
   muted: "text-ink-500",
 };
 

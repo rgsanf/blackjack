@@ -1,8 +1,7 @@
 "use client";
 
 import { LABEL_TO_RANK, RANK_NAMES } from "@/lib/blackjack";
-import type { CardLabel, Suit } from "@/lib/blackjack";
-import { CardPicker } from "./card-picker";
+import type { CardLabel } from "@/lib/blackjack";
 import { CARD_LABELS, TEN_LABELS } from "./palette-data";
 import type { TargetHand } from "../_state/types";
 
@@ -11,9 +10,10 @@ export interface RankPaletteProps {
   remainingByRank: number[];
   infinite: boolean;
   canUndo: boolean;
+  /** False when both hands and every discard are already empty. */
+  canClear: boolean;
   rulesSummary: string;
   onAddCard: (label: CardLabel) => void;
-  onPickExact: (label: CardLabel, suit: Suit) => void;
   onSwitchTarget: (hand: TargetHand) => void;
   onUndo: () => void;
   onReset: () => void;
@@ -24,9 +24,9 @@ export function RankPalette({
   remainingByRank,
   infinite,
   canUndo,
+  canClear,
   rulesSummary,
   onAddCard,
-  onPickExact,
   onSwitchTarget,
   onUndo,
   onReset,
@@ -34,7 +34,7 @@ export function RankPalette({
   const targetLabel = target === "dealer" ? "the dealer" : "you";
 
   return (
-    <div className="sticky bottom-0 z-20 -mx-4 border-t border-felt-700 bg-felt-900/95 px-4 pt-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] backdrop-blur lg:static lg:mx-0 lg:rounded-xl lg:border lg:pb-3 lg:backdrop-blur-none">
+    <div className="sticky bottom-0 z-20 -mx-4 border-t border-onyx-700 bg-onyx-900/95 px-4 pt-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] backdrop-blur lg:static lg:mx-0 lg:rounded-xl lg:border lg:pb-3 lg:backdrop-blur-none">
       {/*
        * Text rank chips rather than card icons: the Game Icons court engravings are
        * indistinguishable dark blobs at 44px, and an "A-spade" key would read as
@@ -63,10 +63,10 @@ export function RankPalette({
               className={[
                 "group flex h-12 min-w-0 flex-col items-center justify-center gap-0.5 rounded-lg border sm:h-14",
                 "font-mono text-lg font-semibold tabular-nums transition-colors",
-                "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brass-400",
+                "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gold-400",
                 out
-                  ? "cursor-not-allowed border-felt-800 bg-felt-950/60 text-ink-500"
-                  : "border-felt-700 bg-felt-800 text-ink-100 hover:border-brass-400 hover:bg-felt-700 active:scale-[0.97]",
+                  ? "cursor-not-allowed border-onyx-800 bg-onyx-950/60 text-ink-500"
+                  : "border-onyx-700 bg-onyx-800 text-ink-100 hover:border-gold-400 hover:bg-onyx-700 active:scale-[0.97]",
               ].join(" ")}
             >
               <span className="leading-none">{label}</span>
@@ -74,7 +74,7 @@ export function RankPalette({
                   disabling at zero prevents entering an impossible hand. */}
               <span
                 className={`font-sans text-[10px] font-normal leading-none ${
-                  out ? "text-loss-400" : "text-ink-500"
+                  out ? "text-loss-300" : "text-ink-500"
                 }`}
               >
                 {infinite ? "∞" : remaining}
@@ -89,7 +89,7 @@ export function RankPalette({
           Dealing to
         </span>
 
-        <div className="inline-flex overflow-hidden rounded-lg border border-felt-700">
+        <div className="inline-flex overflow-hidden rounded-lg border border-onyx-700">
           {(["dealer", "player"] as TargetHand[]).map((hand) => (
             <button
               key={hand}
@@ -98,10 +98,10 @@ export function RankPalette({
               aria-pressed={target === hand}
               className={[
                 "px-3 py-1.5 font-sans text-xs font-semibold uppercase tracking-wider transition-colors",
-                "focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-brass-400",
+                "focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-gold-400",
                 target === hand
-                  ? "bg-brass-400 text-felt-950"
-                  : "bg-felt-800 text-ink-300 hover:text-ink-100",
+                  ? "bg-gold-400 text-onyx-950"
+                  : "bg-onyx-800 text-ink-300 hover:text-ink-100",
               ].join(" ")}
             >
               {hand}
@@ -109,28 +109,31 @@ export function RankPalette({
           ))}
         </div>
 
-        <CardPicker
-          targetLabel={targetLabel}
-          remainingByRank={remainingByRank}
-          infinite={infinite}
-          onPick={onPickExact}
-        />
-
         <button
           type="button"
           onClick={onUndo}
           disabled={!canUndo}
-          className="rounded-lg border border-felt-700 bg-felt-800 px-3 py-1.5 font-sans text-xs text-ink-300 transition-colors hover:text-ink-100 disabled:cursor-not-allowed disabled:opacity-40 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brass-400"
+          className="rounded-lg border border-onyx-700 bg-onyx-800 px-3 py-1.5 font-sans text-xs text-ink-300 transition-colors hover:text-ink-100 disabled:cursor-not-allowed disabled:opacity-40 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gold-400"
         >
           Undo
         </button>
 
+        {/*
+         * Bordered and destructive-tinted rather than a quiet text link. It was the
+         * latter, and was routinely missed - "how do I start the next hand" is the
+         * first thing anyone asks of a tool like this, so the answer has to look like
+         * a button. Disabled when there is nothing to clear, which also makes the
+         * empty state self-evident.
+         */}
         <button
           type="button"
           onClick={onReset}
-          className="rounded-lg px-2 py-1.5 font-sans text-xs text-ink-500 transition-colors hover:text-loss-400 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brass-400"
+          disabled={!canClear}
+          title="Clear both hands and every discard (R). Keeps the deck count; Ctrl+Z undoes it."
+          aria-label="Clear all: both hands and every discard"
+          className="rounded-lg border border-onyx-700 bg-onyx-800 px-3 py-1.5 font-sans text-xs text-ink-300 transition-colors hover:border-loss-400/60 hover:text-loss-300 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:border-onyx-700 disabled:hover:text-ink-300 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gold-400"
         >
-          Reset
+          Clear all
         </button>
 
         <span className="ml-auto hidden font-mono text-[10px] text-ink-500 sm:inline">
@@ -139,8 +142,8 @@ export function RankPalette({
       </div>
 
       <p className="mt-2 font-sans text-[10px] leading-snug text-ink-500">
-        Keys: A, 2&ndash;9, 0 or T, J, Q, K deal &middot; D / P switch hand &middot;
-        Backspace undeals &middot; Ctrl+Z undoes.
+        Keys: A, 2&ndash;9, 0 or T, J, Q, K deal &middot; Tab or D / P switch hand &middot;
+        Backspace undeals &middot; R clears all &middot; Ctrl+Z undoes.
         {!infinite ? (
           <>
             {" "}

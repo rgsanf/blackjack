@@ -1,6 +1,7 @@
 import { ACE, TEN } from "./cards";
 import { addCard, totalOf } from "./hand";
 import { drawP, memoKey, popCard, pushCard, type EngineContext } from "./memo";
+import type { RankIndex } from "./types";
 
 /** Distribution index: 0..4 = final total 17..21, 5 = bust. */
 export const BUST_IDX = 5;
@@ -59,9 +60,57 @@ export function dealerFrom(
 }
 
 /**
+ * Accumulate the dealer's final-total mass for one known first card, weighted by
+ * `weight` and added into `out`. Returns the weighted natural mass it split off.
+ *
+ * Naturals are split off rather than folded in so the CALLER renormalises on
+ * "no natural" once, after summing over every first card it cares about. Doing it
+ * per upcard instead would renormalise each row separately and then average rows
+ * that are conditioned on different events - subtly wrong for the no-card prior.
+ *
+ * The caller owns `up`'s removal from the shoe; this function only removes the hole
+ * card, and always restores it.
+ */
+function accumulateFromUpcard(
+  ctx: EngineContext,
+  up: RankIndex,
+  weight: number,
+  out: Float64Array,
+): number {
+  const start = addCard(0, false, up);
+  let pNatural = 0;
+
+  for (let h = 0; h < 10; h++) {
+    const p = drawP(ctx, h);
+    if (p <= 0) continue;
+    if ((up === ACE && h === TEN) || (up === TEN && h === ACE)) {
+      pNatural += weight * p;
+      continue;
+    }
+    pushCard(ctx, h);
+    const next = addCard(start.total, start.isSoft, h);
+    const sub = dealerFrom(ctx, next.total, next.isSoft);
+    for (let i = 0; i < 6; i++) out[i] += weight * p * sub[i];
+    popCard(ctx, h);
+  }
+
+  return pNatural;
+}
+
+/** Rescale to a proper distribution conditioned on the dealer not having a natural. */
+function renormaliseOnNoNatural(out: Float64Array, pNatural: number): void {
+  if (pNatural <= 0 || pNatural >= 1) return;
+  const inv = 1 / (1 - pNatural);
+  for (let i = 0; i < 6; i++) out[i] *= inv;
+}
+
+/**
  * Exact dealer distribution for the current shoe, peek-conditioned.
  *
- * Two cases, both reachable because the user may edit the dealer's hand freely:
+ * Three cases, all reachable because the user may edit the dealer's hand freely:
+ *  - no cards: the prior. Enumerate both the upcard and the hole card, so the answer
+ *    is the distribution of the dealer's final total before the deal - what you are
+ *    up against on average at this shoe composition.
  *  - one known card: enumerate the hole card, splitting off naturals and renormalising
  *    on "no natural". The hole card is removed BEFORE the dealer's next draw, which is
  *    what makes card-removal effects real rather than cosmetic.
@@ -75,32 +124,28 @@ export function dealerDistExact(ctx: EngineContext): {
 } {
   const dr = ctx.dealerRanks;
 
-  if (dr.length === 0) return { dist: new Float64Array(6), pNatural: 0 };
-
-  if (dr.length === 1) {
-    const up = dr[0];
-    const start = addCard(0, false, up);
+  if (dr.length === 0) {
     const out = new Float64Array(6);
     let pNatural = 0;
 
-    for (let h = 0; h < 10; h++) {
-      const p = drawP(ctx, h);
-      if (p <= 0) continue;
-      if ((up === ACE && h === TEN) || (up === TEN && h === ACE)) {
-        pNatural += p;
-        continue;
-      }
-      pushCard(ctx, h);
-      const next = addCard(start.total, start.isSoft, h);
-      const sub = dealerFrom(ctx, next.total, next.isSoft);
-      for (let i = 0; i < 6; i++) out[i] += p * sub[i];
-      popCard(ctx, h);
+    for (let u = 0; u < 10; u++) {
+      const pUp = drawP(ctx, u);
+      if (pUp <= 0) continue;
+      // Removed before the hole card is enumerated: at one deck, an upcard of 10 must
+      // leave 15 tens for the hole card, not 16.
+      pushCard(ctx, u);
+      pNatural += accumulateFromUpcard(ctx, u as RankIndex, pUp, out);
+      popCard(ctx, u);
     }
 
-    if (pNatural > 0 && pNatural < 1) {
-      const inv = 1 / (1 - pNatural);
-      for (let i = 0; i < 6; i++) out[i] *= inv;
-    }
+    renormaliseOnNoNatural(out, pNatural);
+    return { dist: out, pNatural };
+  }
+
+  if (dr.length === 1) {
+    const out = new Float64Array(6);
+    const pNatural = accumulateFromUpcard(ctx, dr[0], 1, out);
+    renormaliseOnNoNatural(out, pNatural);
     return { dist: out, pNatural };
   }
 

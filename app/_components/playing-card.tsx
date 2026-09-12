@@ -16,8 +16,9 @@ export interface PlayingCardProps {
 /**
  * A card-shaped container is mandatory rather than decorative: every Game Icons glyph
  * uses a square 512x512 viewBox, so a bare icon has no card silhouette, and a
- * monochrome glyph inheriting currentColor would be invisible on felt. The cream face
- * also decouples the red/black suit convention from the page theme entirely.
+ * monochrome glyph inheriting currentColor would be invisible on the near-black table.
+ * The cream face also decouples the red/black suit convention from the page theme
+ * entirely - and against black it is the cream that carries the whole composition.
  */
 export function PlayingCard({
   label,
@@ -36,7 +37,7 @@ export function PlayingCard({
     "w-[var(--card-w)] h-[var(--card-h)]",
     "shadow-[0_1px_2px_rgba(0,0,0,.45),0_6px_14px_-8px_rgba(0,0,0,.6)]",
     "card-lift",
-    overlap ? "-ml-5 first:ml-0" : "",
+    overlap ? "-ml-[var(--card-overlap)] first:ml-0" : "",
     red ? "text-face-red" : "text-face-ink",
     interactive
       ? [
@@ -44,7 +45,7 @@ export function PlayingCard({
           // Focus gets the same lift as hover, so a focused card in an overlapping fan
           // is never hidden behind its neighbour.
           "focus-visible:z-10 focus-visible:-translate-y-1.5",
-          "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brass-400",
+          "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gold-400",
         ].join(" ")
       : "",
   ]
@@ -55,18 +56,22 @@ export function PlayingCard({
     <>
       {/* Always text: survives any icon failure, and under overlap this strip is all
           that remains visible of the card. */}
-      <span className="absolute left-1 top-0.5 font-mono text-[11px] font-bold leading-none">
+      <span className="absolute left-1 top-0.5 font-mono text-[length:var(--card-rank)] font-bold leading-none">
         {label}
         <span aria-hidden="true" className="ml-px">
           {SUIT_GLYPH[suit]}
         </span>
       </span>
 
-      <CardIcon label={label} suit={suit} className="h-9 w-9" />
+      <CardIcon
+        label={label}
+        suit={suit}
+        className="h-[var(--card-pip)] w-[var(--card-pip)]"
+      />
 
       {isUpcard ? (
         <span
-          className="absolute inset-x-0 bottom-0 bg-face-ink/85 py-px text-center text-[8px] font-bold uppercase tracking-widest text-face"
+          className="absolute inset-x-0 bottom-0 bg-face-ink/85 py-px text-center text-[length:calc(var(--card-rank)*0.72)] font-bold uppercase tracking-widest text-face"
           aria-hidden="true"
         >
           up
@@ -76,7 +81,7 @@ export function PlayingCard({
       {interactive ? (
         <span
           aria-hidden="true"
-          className="pointer-events-none absolute inset-x-0 bottom-0 bg-face-ink/85 py-0.5 text-center text-[9px] font-semibold uppercase tracking-wide text-face opacity-0 transition-opacity group-hover:opacity-100 group-focus-visible:opacity-100"
+          className="pointer-events-none absolute inset-x-0 bottom-0 bg-face-ink/85 py-0.5 text-center text-[length:calc(var(--card-rank)*0.8)] font-semibold uppercase tracking-wide text-face opacity-0 transition-opacity group-hover:opacity-100 group-focus-visible:opacity-100"
         >
           remove
         </span>

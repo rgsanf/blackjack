@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { renderToStaticMarkup } from "react-dom/server";
-import { analyze, cardFromLabel } from "@/lib/blackjack";
+import { analyze, cardFromLabel, preDealBaseline } from "@/lib/blackjack";
 import type { AnalysisResult, Card, CardLabel } from "@/lib/blackjack";
 import { DealerOdds } from "./dealer-odds";
 import { PlayerOdds } from "./player-odds";
@@ -62,11 +62,17 @@ describe("dealer odds column", () => {
     expect(html).not.toContain("P(blackjack)");
   });
 
-  it("prompts for a card when the dealer has none", () => {
+  it("shows the pre-deal prior when the dealer has no cards", () => {
+    const res = analyze({ deck: { kind: "shoe", decks: 8 }, dealerCards: [], playerCards: [] });
+    if (res.status !== "incomplete") throw new Error(res.status);
     const html = renderToStaticMarkup(
-      <DealerOdds outcomes={null} upcard={null} dealerCardCount={0} />,
+      <DealerOdds outcomes={res.dealer.outcomes} upcard={null} dealerCardCount={0} />,
     );
-    expect(html).toContain("Deal the dealer a card");
+    expect(html).toContain("before the deal");
+    expect(html).toContain("P(blackjack)");
+    // ~4.7% at eight decks, and the bars are real numbers, not a prompt.
+    expect(html).toContain("4.7%");
+    expect(html).not.toContain("Deal the dealer a card");
   });
 });
 
@@ -135,5 +141,63 @@ describe("player odds column", () => {
     );
     expect(html).toContain("\u22120.5");
     expect(html).not.toMatch(/>-0\.\d/);
+  });
+});
+
+describe("pre-deal player baseline", () => {
+  it("shows win/push/loss and the house edge before any card is dealt", () => {
+    const html = renderToStaticMarkup(
+      <PlayerOdds
+        stand={null}
+        best={null}
+        bestAction={null}
+        actions={null}
+        baseline={preDealBaseline(8)}
+      />,
+    );
+    expect(html).toContain("Before the deal");
+    expect(html).toContain("43.3%"); // win
+    expect(html).toContain("8.7%"); // push
+    expect(html).toContain("48.0%"); // loss
+    expect(html).toContain("House edge");
+    expect(html).toContain("0.5%");
+    expect(html).not.toContain("Deal both hands");
+  });
+
+  it("says the figures are for a full shoe once discards exist", () => {
+    const withDiscards = renderToStaticMarkup(
+      <PlayerOdds
+        stand={null}
+        best={null}
+        bestAction={null}
+        actions={null}
+        baseline={preDealBaseline(8)}
+        shoeDisturbed
+      />,
+    );
+    expect(withDiscards).toContain("do not track the discards");
+  });
+
+  it("calls a single deck a player edge, not a house edge", () => {
+    // The one deck count where this engine's composition-dependent play is ahead.
+    expect(preDealBaseline(1)!.ev).toBeGreaterThan(0);
+    const html = renderToStaticMarkup(
+      <PlayerOdds
+        stand={null}
+        best={null}
+        bestAction={null}
+        actions={null}
+        baseline={preDealBaseline(1)}
+      />,
+    );
+    expect(html).toContain("Player edge");
+    expect(html).not.toContain("House edge");
+  });
+
+  it("falls back to the prompt when there is no baseline for the deck count", () => {
+    const html = renderToStaticMarkup(
+      <PlayerOdds stand={null} best={null} bestAction={null} actions={null} />,
+    );
+    expect(html).toContain("Deal both hands");
   });
 });

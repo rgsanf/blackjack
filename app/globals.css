@@ -12,49 +12,137 @@
  * next/font variables below need and what literal hexes do not.
  */
 @theme {
-  /* Table surfaces. Low chroma so text stays legible on them. */
-  --color-felt-950: #06241a;
-  --color-felt-900: #0a3327;
-  --color-felt-850: #0d3c2e;
-  --color-felt-800: #0f4534;
-  --color-felt-700: #17604a;
-  --color-felt-600: #1f7a5c;
-
-  /* Accent: active target, best action. */
-  --color-brass-500: #b8942b;
-  --color-brass-400: #d4af37;
-  --color-brass-300: #e8c96a;
-
-  /* Text on felt. ink-500 is the AA floor for the smallest labels. */
-  --color-ink-100: #f2f7f4;
-  --color-ink-300: #c5dbd0;
-  --color-ink-500: #93b0a3;
+  /*
+   * Surfaces: near-black, warmed by a few points of chroma so it reads as ink or
+   * lacquer rather than as a default dark-mode gray. Steps are close together on
+   * purpose - elevation here is a whisper, and the gold does the pointing.
+   */
+  --color-onyx-950: #0a0a09;
+  --color-onyx-900: #111110;
+  --color-onyx-850: #171714;
+  --color-onyx-800: #1e1d1a;
+  --color-onyx-700: #2e2b25;
+  --color-onyx-600: #413d34;
 
   /*
-   * Outcome colours deliberately exclude green: on a green table, encoding "win" as
-   * green is the one choice guaranteed to fail. These four differ in hue AND lightness,
-   * so they survive colour blindness and monochrome.
+   * Gold. Kept SCARCE - active hand, best action, and nothing else. Gold spread
+   * across every surface is what makes a black-and-gold theme look cheap; it reads
+   * as precious only while it is rare.
+   *
+   * Not #d4af37: that is the stock "metallic gold" hex and it looks like it. These
+   * steps are pulled down in chroma toward brass so they sit on black without
+   * glowing.
    */
-  --color-win-400: #5fe3a6;
-  --color-push-400: #a9c3d6;
-  --color-loss-400: #ff7a6b;
-  --color-bust-400: #ffb454;
+  --color-gold-500: #8a6f2f;
+  --color-gold-400: #c8a44e;
+  --color-gold-300: #e3c98f;
+
+  /* Text. Warm grays, matching the surfaces' cast. ink-500 is the AA floor for the
+     smallest labels: 5.09:1 on onyx-900, 4.54:1 on onyx-800. */
+  --color-ink-100: #f4f2ed;
+  --color-ink-300: #c3bdb1;
+  --color-ink-500: #8a8479;
+  /*
+   * Outcome colours. Status, not series: they mean good / neutral / bad, and every one
+   * is paired with its own text label in a fixed gutter, so nothing is carried by
+   * colour alone.
+   *
+   * Green is the win colour now, which it could not be on the old green table - the
+   * one encoding guaranteed to fail there. The black ground gives it back.
+   *
+   * None of them enter the yellow band. That is reserved for gold; an amber sitting
+   * next to the accent would impersonate it.
+   *
+   * Validated per CHART, not as one pile - the dealer's bars and the player's bars are
+   * separate charts in separate panels and never share an axis. Both clear the CVD and
+   * normal-vision floors on the bar track (#1e1d1a):
+   *   dealer   bar-400 vs win-400   dE 19.0 deutan / 23.3 normal
+   *   player   worst pair is loss vs win, dE 16.7 deutan / 24.6 normal
+   *
+   * Two deliberate deviations from the generic checks:
+   *  - win-400 sits above the dark-mode lightness band. That extra lightness IS what
+   *    separates it from loss-400 under deuteranopia; holding it inside the band put
+   *    the red/green pair at dE 5.5, which is unreadable for the commonest form of
+   *    colour blindness. Band guidance loses to the pair it exists to protect.
+   *  - bar-400 is below the chroma floor, i.e. it reads gray. That is the point: it
+   *    marks an unremarkable dealer total and must not look like a hue with meaning.
+   */
+  --color-win-400: #4cc47c;
+  --color-push-400: #4a86cf;
+  --color-loss-400: #c43f39;
+  /* loss-400 is a bar fill; as text it lands at 3.70:1, under AA. This is the text
+     step, 6.26:1 on onyx-900. */
+  --color-loss-300: #e4736b;
+  /*
+   * The dealer's 17-21 bars. Its own token rather than the ink-500 text colour it used
+   * to borrow: a mark and a label have different jobs and different contrast floors,
+   * and sharing one value meant neither could move without breaking the other.
+   */
+  --color-bar-400: #6f7683;
+  /* Input problems only, never an outcome. Orange rather than amber so it cannot be
+     mistaken for the gold accent. */
+  --color-warn-400: #e08a4a;
 
   /*
    * Card faces stay cream in every theme. The red/black suit distinction only reads on
    * a light face, and a dark card looks face-down. Contrast on this face is ~5.9:1 for
-   * red and ~17:1 for black, independent of page theme.
+   * red and ~17:1 for black, independent of page theme - and against near-black the
+   * cream now carries the whole table.
    */
   --color-face: #fbfaf7;
   --color-face-edge: #d9d3c7;
   --color-face-ink: #17110d;
   --color-face-red: #b81d1a;
+}
 
-  /* One source of truth for the 2.5:3.5 card ratio. */
-  --card-w: 3.5rem;
-  --card-h: 4.9rem;
-  --card-w-sm: 2rem;
-  --card-h-sm: 2.8rem;
+/*
+ * Card geometry, one breakpoint scale.
+ *
+ * Deliberately NOT in `@theme`: that block is for static design tokens Tailwind
+ * generates utilities from, and these change per breakpoint. Every use site already
+ * reads them through var(), so nothing is lost by keeping them here.
+ *
+ * Height is always width * 1.4 - the 2.5:3.5 card ratio - and the pip, the corner rank
+ * and the fan overlap are all fixed fractions of the width. Scaling the width alone
+ * would give a bigger rectangle with a small pip marooned in it; these keep a large
+ * card looking like the same card, just larger.
+ */
+:root {
+  --card-w: 3.25rem;
+  --card-h: 4.55rem;
+  --card-overlap: 1.125rem;
+  --card-pip: 2rem;
+  --card-rank: 0.625rem;
+}
+
+@media (min-width: 40rem) {
+  :root {
+    --card-w: 3.5rem;
+    --card-h: 4.9rem;
+    --card-overlap: 1.25rem;
+    --card-pip: 2.25rem;
+    --card-rank: 0.6875rem;
+  }
+}
+
+@media (min-width: 64rem) {
+  :root {
+    --card-w: 4.5rem;
+    --card-h: 6.3rem;
+    --card-overlap: 1.625rem;
+    --card-pip: 2.875rem;
+    --card-rank: 0.875rem;
+  }
+}
+
+@media (min-width: 80rem) {
+  :root {
+    --card-w: 5.5rem;
+    --card-h: 7.7rem;
+    --card-overlap: 2rem;
+    --card-pip: 3.5rem;
+    --card-rank: 1.0625rem;
+  }
 }
 
 /* `inline` because these point at variables next/font injects at runtime. */
@@ -88,30 +176,30 @@
 }
 
 /*
- * This app commits to a single dark look, so the shadcn palette is mapped onto the felt
+ * This app commits to a single dark look, so the shadcn palette is mapped onto the onyx
  * surfaces directly in :root rather than split across :root and .dark. That keeps
  * shadcn primitives (popover, toggle group) on-theme with no flash and nothing to
  * re-verify for a second theme.
  */
 :root {
-  --background: #06241a;
-  --foreground: #f2f7f4;
-  --card: #0a3327;
-  --card-foreground: #f2f7f4;
-  --popover: #0a3327;
-  --popover-foreground: #f2f7f4;
-  --primary: #d4af37;
-  --primary-foreground: #06241a;
-  --secondary: #0f4534;
-  --secondary-foreground: #f2f7f4;
-  --muted: #0d3c2e;
-  --muted-foreground: #93b0a3;
-  --accent: #0f4534;
-  --accent-foreground: #f2f7f4;
-  --destructive: #ff7a6b;
-  --border: #17604a;
-  --input: #17604a;
-  --ring: #d4af37;
+  --background: #0a0a09;
+  --foreground: #f4f2ed;
+  --card: #111110;
+  --card-foreground: #f4f2ed;
+  --popover: #111110;
+  --popover-foreground: #f4f2ed;
+  --primary: #c8a44e;
+  --primary-foreground: #0a0a09;
+  --secondary: #1e1d1a;
+  --secondary-foreground: #f4f2ed;
+  --muted: #171714;
+  --muted-foreground: #8a8479;
+  --accent: #1e1d1a;
+  --accent-foreground: #f4f2ed;
+  --destructive: #e4736b;
+  --border: #2e2b25;
+  --input: #2e2b25;
+  --ring: #c8a44e;
   --radius: 0.625rem;
 }
 
@@ -121,7 +209,7 @@
   }
 
   body {
-    background-color: var(--color-felt-950);
+    background-color: var(--color-onyx-950);
     color: var(--color-ink-100);
     /*
      * Layered, unlike the scaffold's original unlayered Arial rule: in Tailwind v4
@@ -129,10 +217,16 @@
      * made `font-sans` on body silently do nothing.
      */
     font-family: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;
+    /*
+     * A single, very low-contrast warm wash from the top edge - about three points of
+     * lightness. The old table had a saturated radial glow behind it, which is the
+     * quickest way to make a dark UI look synthetic. This one should be almost
+     * subliminal: enough to stop a flat black field, not enough to notice.
+     */
     background-image: radial-gradient(
-      120% 90% at 50% -10%,
-      #0d4030 0%,
-      var(--color-felt-950) 62%
+      130% 80% at 50% -20%,
+      #16140f 0%,
+      var(--color-onyx-950) 58%
     );
     background-attachment: fixed;
   }

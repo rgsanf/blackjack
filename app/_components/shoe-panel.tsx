@@ -25,7 +25,7 @@ export function ShoePanel({ decks, shoe, onSetDecks }: ShoePanelProps) {
             const v = e.target.value;
             onSetDecks(v === "infinite" ? "infinite" : (Number(v) as DeckOption));
           }}
-          className="rounded-lg border border-felt-700 bg-felt-800 px-2 py-1 font-mono text-sm text-ink-100 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brass-400"
+          className="rounded-lg border border-onyx-700 bg-onyx-800 px-2 py-1 font-mono text-sm text-ink-100 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gold-400"
         >
           {DECK_OPTIONS.map((d) => (
             <option key={String(d)} value={String(d)}>

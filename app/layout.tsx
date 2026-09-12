@@ -22,7 +22,7 @@ export const viewport: Viewport = {
   // The app commits to a single dark look; declaring it lets the browser render native
   // controls, scrollbars and default focus rings to match.
   colorScheme: "dark",
-  themeColor: "#06241a",
+  themeColor: "#0a0a09",
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {

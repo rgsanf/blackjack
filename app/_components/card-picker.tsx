@@ -15,33 +15,47 @@ export interface CardPickerProps {
   remainingByRank: number[];
   infinite: boolean;
   onPick: (label: CardLabel, suit: Suit) => void;
+  /** Runs when the trigger is pressed, before a card is chosen. */
+  onOpen?: () => void;
+  triggerClassName: string;
+  triggerAriaLabel: string;
+  children: React.ReactNode;
 }
 
 /**
  * Exact-card picker in a popover.
  *
+ * The trigger is supplied by the caller because the picker now hangs off the dashed
+ * card placeholders in each hand, where "+" on an empty card slot says what it does
+ * far better than a separate button in the action bar did.
+ *
  * Deliberately stays open after a pick: this is a tool the user clicks many times in a
  * row, so closing on every selection would double the interaction cost of entering a
- * hand. The quick rank strip beside it remains the fast path for when the suit does not
- * matter - which, mathematically, is always.
+ * hand. The quick rank strip in the action bar remains the fast path for when the suit
+ * does not matter - which, mathematically, is always.
  */
 export function CardPicker({
   targetLabel,
   remainingByRank,
   infinite,
   onPick,
+  onOpen,
+  triggerClassName,
+  triggerAriaLabel,
+  children,
 }: CardPickerProps) {
   return (
     <Popover>
       <PopoverTrigger
-        className="inline-flex h-9 items-center gap-1.5 rounded-lg border border-felt-700 bg-felt-800 px-3 font-sans text-xs font-medium text-ink-300 transition-colors hover:border-brass-400 hover:text-ink-100 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brass-400"
-        aria-label="Pick an exact card, including its suit"
+        className={triggerClassName}
+        aria-label={triggerAriaLabel}
+        onClick={onOpen}
       >
-        <span aria-hidden="true">&#43;</span> Exact card
+        {children}
       </PopoverTrigger>
 
       <PopoverContent
-        className="w-auto max-w-[min(94vw,34rem)] gap-3 border border-felt-700 bg-felt-900 p-3"
+        className="w-auto max-w-[min(94vw,34rem)] gap-3 border border-onyx-700 bg-onyx-900 p-3"
         align="end"
       >
         <div>
@@ -102,7 +116,7 @@ function PickerRow({
       <span
         aria-hidden="true"
         className={`flex items-center pr-1 font-mono text-sm ${
-          SUIT_IS_RED[suit] ? "text-loss-400" : "text-ink-300"
+          SUIT_IS_RED[suit] ? "text-loss-300" : "text-ink-300"
         }`}
       >
         {SUIT_GLYPH[suit]}
@@ -122,10 +136,10 @@ function PickerRow({
               "flex aspect-[2.5/3.5] min-w-7 items-center justify-center rounded border",
               "transition-colors",
               out
-                ? "cursor-not-allowed border-felt-800 bg-felt-950/60 opacity-40"
-                : "border-face-edge bg-face hover:ring-2 hover:ring-brass-400",
+                ? "cursor-not-allowed border-onyx-800 bg-onyx-950/60 opacity-40"
+                : "border-face-edge bg-face hover:ring-2 hover:ring-gold-400",
               SUIT_IS_RED[suit] ? "text-face-red" : "text-face-ink",
-              "focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-brass-400",
+              "focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-gold-400",
             ].join(" ")}
           >
             <CardIcon label={label} suit={suit} className="h-5 w-5" />

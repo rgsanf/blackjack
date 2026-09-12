@@ -1,6 +1,15 @@
 import { describe, expect, it } from "vitest";
+import { LABEL_TO_RANK } from "./cards";
 import type { CardLabel } from "./types";
-import { INFINITE, SHOE, asPercentRow, dealerTable, hand } from "./testing";
+import {
+  INFINITE,
+  SHOE,
+  asPercentRow,
+  dealerTable,
+  hand,
+  priorTable,
+  rootDrawP,
+} from "./testing";
 import { analyze } from "./analyze";
 
 /**
@@ -140,5 +149,117 @@ describe("dealer blackjack probability", () => {
     if (res.status !== "ok") throw new Error(res.status);
     expect(res.dealer.outcomes.pNatural).toBe(0);
     expect(res.dealer.outcomes.conditionedOnNoNatural).toBe(false);
+  });
+});
+
+describe("pre-deal prior (no dealer card)", () => {
+  const KEYS = ["p17", "p18", "p19", "p20", "p21", "pBust"] as const;
+
+  it("is a proper distribution at every deck count", () => {
+    for (const deck of [INFINITE, SHOE(1), SHOE(2), SHOE(4), SHOE(6), SHOE(8)]) {
+      const o = priorTable(deck);
+      const sum = KEYS.reduce((a, k) => a + o[k], 0);
+      expect(sum, `deck ${JSON.stringify(deck)}`).toBeCloseTo(1, 12);
+      for (const k of KEYS) expect(o[k], `${k}`).toBeGreaterThan(0);
+    }
+  });
+
+  /**
+   * The strongest available check: the prior must be the upcard-weighted average of
+   * the ten published rows, weighted by P(upcard) AND by P(no natural | upcard).
+   *
+   * Weighting by P(upcard) alone is the tempting mistake. It double-counts blackjacks:
+   * each row is already conditioned on its own upcard not making one, so the rows are
+   * conditioned on different events and cannot be averaged without the second factor.
+   */
+  for (const [name, deck] of [
+    ["infinite deck", INFINITE],
+    ["8 decks", SHOE(8)],
+    ["1 deck", SHOE(1)],
+  ] as const) {
+    it(`matches the no-natural-weighted average of the upcard rows, ${name}`, () => {
+      const p = rootDrawP(deck);
+      const want = { p17: 0, p18: 0, p19: 0, p20: 0, p21: 0, pBust: 0 };
+      let mass = 0;
+
+      for (const up of UPCARDS) {
+        const row = dealerTable(up, deck);
+        const w = p[LABEL_TO_RANK[up]] * (1 - row.pNatural);
+        mass += w;
+        for (const k of KEYS) want[k] += w * row[k];
+      }
+
+      const got = priorTable(deck);
+      for (const k of KEYS) {
+        expect(got[k], `${k}`).toBeCloseTo(want[k] / mass, 12);
+      }
+      expect(got.pNatural).toBeCloseTo(1 - mass, 12);
+    });
+  }
+
+  it("P(blackjack) matches the closed form before any card is dealt", () => {
+    // Two orderings (ace-then-ten, ten-then-ace), hence the factor of 2.
+    expect(priorTable(INFINITE).pNatural).toBeCloseTo(2 * (1 / 13) * (4 / 13), 12);
+    expect(priorTable(SHOE(8)).pNatural).toBeCloseTo(2 * (32 / 416) * (128 / 415), 12);
+    expect(priorTable(SHOE(1)).pNatural).toBeCloseTo(2 * (4 / 52) * (16 / 51), 12);
+  });
+
+  it("removes the upcard before drawing the hole card", () => {
+    // The tell at one deck: if the upcard were not removed, an ace up would still see
+    // 16 tens rather than 16 of 51, and P(blackjack) would come out at 2*(4/52)*(16/52).
+    expect(priorTable(SHOE(1)).pNatural).not.toBeCloseTo(2 * (4 / 52) * (16 / 52), 6);
+  });
+
+  it("tracks the shoe: burning every ace removes blackjack entirely", () => {
+    const drained = priorTable(SHOE(1), ["A", "A", "A", "A"]);
+    expect(drained.pNatural).toBe(0);
+    expect(drained.conditionedOnNoNatural).toBe(false);
+    expect(KEYS.reduce((a, k) => a + drained[k], 0)).toBeCloseTo(1, 12);
+  });
+
+  it("tracks the shoe: stripping small cards makes the dealer stronger, not weaker", () => {
+    // Worth pinning down, because it inverts the familiar card-counting intuition.
+    // "A high count means the dealer busts more" is conditional on a STIFF upcard:
+    // with 6 up, stripping 2-6 lifts the bust rate from ~42% to ~49%.
+    //
+    // The prior averages over all ten upcards, and there the opposite dominates: a
+    // ten-heavy shoe deals the dealer more two-card pat hands, so bust FALLS and 20
+    // rises. Asserting the counting intuition here would enshrine a real bug.
+    const strip: CardLabel[] = ["2", "3", "4", "5", "6", "6", "5", "4"];
+    const fresh = priorTable(SHOE(1));
+    const noSmall = priorTable(SHOE(1), strip);
+
+    expect(noSmall.pBust).toBeLessThan(fresh.pBust);
+    expect(noSmall.p20).toBeGreaterThan(fresh.p20);
+    expect(noSmall.pNatural).toBeGreaterThan(fresh.pNatural);
+
+    // The conditional claim in the comment above, pinned so it cannot rot.
+    expect(dealerTable("6", SHOE(1), strip).pBust).toBeGreaterThan(
+      dealerTable("6", SHOE(1)).pBust,
+    );
+  });
+
+  it("is reported through analyze with no upcard and no player EV", () => {
+    const res = analyze({ deck: SHOE(6), dealerCards: [], playerCards: hand("10", "6") });
+    if (res.status !== "incomplete") throw new Error(res.status);
+    expect(res.need).toBe("dealerCards");
+    expect(res.dealer.upcard).toBeNull();
+    expect(res.dealer.value.cardCount).toBe(0);
+    expect(res.player?.total).toBe(16);
+    expect(res.pDealerBlackjack).toBeGreaterThan(0);
+  });
+
+  it("accounts for the player's own cards", () => {
+    // Holding both remaining aces at one deck cannot leave the dealer a natural.
+    const bare = priorTable(SHOE(1));
+    const res = analyze({
+      deck: SHOE(1),
+      dealerCards: [],
+      playerCards: hand("A", "A"),
+      removedCards: hand("A", "A"),
+    });
+    if (res.status !== "incomplete") throw new Error(res.status);
+    expect(res.dealer.outcomes.pNatural).toBe(0);
+    expect(res.dealer.outcomes.pBust).not.toBeCloseTo(bare.pBust, 6);
   });
 });

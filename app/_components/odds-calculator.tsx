@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useReducer } from "react";
-import { RULES_SUMMARY, analyze, rankLabel } from "@/lib/blackjack";
+import { RULES_SUMMARY, analyze, preDealBaseline, rankLabel } from "@/lib/blackjack";
 import type {
   ActionEV,
   ActionKind,
@@ -11,7 +11,6 @@ import type {
   HandValue,
   Outcome,
   ShoeInfo,
-  Suit,
 } from "@/lib/blackjack";
 import { DealerOdds } from "./dealer-odds";
 import { DiscardTracker } from "./discard-tracker";
@@ -82,8 +81,19 @@ function toView(res: AnalysisResult): View {
 
 function composeSummary(view: View, target: TargetHand): string {
   if (view.invalidReason) return view.invalidReason;
+
+  // Always leads with the target. Tab changes nothing else on screen once both hands
+  // are dealt, so without this a screen-reader user gets silence when they press it.
+  const lead = `Dealing to ${target}.`;
+
   if (!view.player || !view.dealer || !view.actions || !view.stand) {
-    return `Dealing to ${target}. Deal both hands to see the odds.`;
+    const d = view.dealer?.outcomes;
+    const prior =
+      d && view.dealer?.value.cardCount === 0
+        ? ` Before the deal the dealer busts ${Math.round(d.pBust * 100)} percent of the time` +
+          ` and has blackjack ${(d.pNatural * 100).toFixed(1)} percent.`
+        : "";
+    return `${lead}${prior} Deal both hands to see the odds.`;
   }
 
   const p = view.player;
@@ -144,18 +154,51 @@ export function OddsCalculator() {
         el instanceof HTMLInputElement ||
         el instanceof HTMLSelectElement ||
         el instanceof HTMLTextAreaElement;
+      // The exact-card popover is a 52-button grid; Tab has to keep its normal meaning
+      // inside it or the grid becomes unreachable by keyboard.
+      const inPopover =
+        el instanceof Element && el.closest('[data-slot="popover-content"]') !== null;
 
       if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "z") {
         e.preventDefault();
         dispatch({ type: "undo" });
         return;
       }
+
+      /**
+       * Tab and Shift+Tab both flip the hand being dealt to - the highest-frequency
+       * action in this UI, on the key that already means "switch pane" everywhere
+       * else. With two hands there is no forward or backward, so both directions do
+       * the same thing.
+       *
+       * This takes focus navigation away from the page entirely. Deliberate, and the
+       * reason the two guards above exist: inside the discard fields and inside the
+       * exact-card popover Tab keeps its normal meaning, which is what keeps those
+       * controls reachable. Everything else is driven by mouse or by the hotkeys.
+       */
+      if (e.key === "Tab" && !e.altKey && !e.ctrlKey && !e.metaKey) {
+        if (typing || inPopover) return;
+        e.preventDefault();
+        dispatch({
+          type: "setTarget",
+          hand: state.target === "dealer" ? "player" : "dealer",
+        });
+        return;
+      }
+
       if (e.altKey || e.ctrlKey || e.metaKey || typing) return;
 
       const key = e.key.toLowerCase();
       if (key === "d" || key === "p") {
         e.preventDefault();
         dispatch({ type: "setTarget", hand: key === "d" ? "dealer" : "player" });
+        return;
+      }
+      // Destructive on a single unmodified keypress, which is only acceptable because
+      // it lands in the undo stack like everything else - Ctrl+Z brings the table back.
+      if (key === "r") {
+        e.preventDefault();
+        dispatch({ type: "reset" });
         return;
       }
       if (e.key === "Backspace" || e.key === "Delete") {
@@ -176,6 +219,9 @@ export function OddsCalculator() {
   }, [state]);
 
   const inHands = state.dealer.length + state.player.length;
+  // Mirrors the reducer's own no-op guard, so the button is never live-but-inert.
+  const canClear =
+    inHands > 0 || state.discards.some((n) => n > 0) || state.target !== "dealer";
   const dealerWarnings = view.warnings.filter((w) => w.toLowerCase().includes("dealer"));
   const playerWarnings = view.warnings.filter((w) => !w.toLowerCase().includes("dealer"));
 
@@ -186,7 +232,7 @@ export function OddsCalculator() {
 
       <header className="flex flex-wrap items-center justify-between gap-x-6 gap-y-3 py-4">
         <p className="font-sans text-lg font-semibold tracking-tight text-ink-100">
-          <span aria-hidden="true" className="text-brass-400">
+          <span aria-hidden="true" className="text-gold-400">
             &spades;
           </span>{" "}
           Blackjack Odds
@@ -199,7 +245,7 @@ export function OddsCalculator() {
       </header>
 
       {view.invalidReason ? (
-        <p className="mb-4 rounded-lg border border-loss-400/40 bg-loss-400/10 px-3 py-2 font-sans text-xs text-loss-400">
+        <p className="mb-4 rounded-lg border border-loss-400/40 bg-loss-400/10 px-3 py-2 font-sans text-xs text-loss-300">
           {view.invalidReason}
         </p>
       ) : null}
@@ -212,6 +258,10 @@ export function OddsCalculator() {
           value={view.dealer?.value ?? null}
           isActive={state.target === "dealer"}
           markUpcard
+          oddsMinHeight="21rem"
+          remainingByRank={remaining}
+          infinite={state.decks === "infinite"}
+          onPickExact={(label, suit) => dispatch({ type: "addCard", label, suit })}
           warnings={dealerWarnings}
           onActivate={() => dispatch({ type: "setTarget", hand: "dealer" })}
           onRemoveCard={(uid) => dispatch({ type: "removeCard", hand: "dealer", uid })}
@@ -230,6 +280,10 @@ export function OddsCalculator() {
           cards={state.player}
           value={view.player}
           isActive={state.target === "player"}
+          oddsMinHeight="29rem"
+          remainingByRank={remaining}
+          infinite={state.decks === "infinite"}
+          onPickExact={(label, suit) => dispatch({ type: "addCard", label, suit })}
           warnings={playerWarnings}
           footnote="Suits are cosmetic — 10, J, Q and K count identically and suit is ignored."
           onActivate={() => dispatch({ type: "setTarget", hand: "player" })}
@@ -242,6 +296,8 @@ export function OddsCalculator() {
             bestAction={view.bestAction}
             actions={view.actions}
             splitNote={view.splitNote}
+            baseline={preDealBaseline(state.decks)}
+            shoeDisturbed={state.discards.some((n) => n > 0)}
           />
         </HandPanel>
 
@@ -250,11 +306,9 @@ export function OddsCalculator() {
           remainingByRank={remaining}
           infinite={state.decks === "infinite"}
           canUndo={state.past.length > 0}
+          canClear={canClear}
           rulesSummary={RULES_SUMMARY}
           onAddCard={(label: CardLabel) => dispatch({ type: "addCard", label })}
-          onPickExact={(label: CardLabel, suit: Suit) =>
-            dispatch({ type: "addCard", label, suit })
-          }
           onSwitchTarget={(hand) => dispatch({ type: "setTarget", hand })}
           onUndo={() => dispatch({ type: "undo" })}
           onReset={() => dispatch({ type: "reset" })}

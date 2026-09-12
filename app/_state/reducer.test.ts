@@ -216,11 +216,45 @@ describe("end-to-end scenarios the UI must handle", () => {
     expect(s.player).toHaveLength(0);
     expect(s.dealer).toHaveLength(1);
   });
-
-  it("keeps the deck setting across a reset", () => {
+  it("keeps the deck setting across a clear all", () => {
     let s = run([{ type: "setDecks", decks: 2 }, deal("A"), deal("K")]);
     s = reducer(s, { type: "reset" });
     expect(s.decks).toBe(2);
     expect(s.dealer).toHaveLength(0);
+  });
+
+  it("clear all empties both hands, every discard and the target", () => {
+    let s = run([
+      deal("A"),
+      { type: "setTarget", hand: "player" },
+      deal("10"),
+      { type: "adjustDiscard", rank: 9, delta: 3 },
+    ]);
+    s = reducer(s, { type: "reset" });
+    expect(s.dealer).toHaveLength(0);
+    expect(s.player).toHaveLength(0);
+    expect(s.discards.every((n) => n === 0)).toBe(true);
+    expect(s.target).toBe("dealer");
+  });
+
+  it("clear all is undoable in one step", () => {
+    let s = run([deal("A"), deal("K"), { type: "adjustDiscard", rank: 0, delta: 2 }]);
+    s = reducer(s, { type: "reset" });
+    s = reducer(s, { type: "undo" });
+    expect(s.dealer).toHaveLength(2);
+    expect(s.discards[0]).toBe(2);
+  });
+
+  it("clear all is a no-op on an already empty table", () => {
+    // The button is disabled in this state; the guard keeps a stray dispatch from
+    // pushing an undo entry that restores an identical state.
+    const s = createInitialState();
+    expect(reducer(s, { type: "reset" })).toBe(s);
+    expect(reducer(s, { type: "reset" }).past).toHaveLength(0);
+  });
+
+  it("clear all still fires when only the deal target has moved", () => {
+    const s = reducer(createInitialState(), { type: "setTarget", hand: "player" });
+    expect(reducer(s, { type: "reset" }).target).toBe("dealer");
   });
 });

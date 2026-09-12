@@ -9,13 +9,17 @@ import type { CardLabel } from "./types";
  * or present confident-looking numbers for an impossible situation.
  */
 describe("degenerate and impossible states", () => {
-  it("reports incomplete with no cards at all", () => {
+  it("reports incomplete with no cards at all, but still prices the dealer", () => {
     const res = analyze({ deck: SHOE(8), dealerCards: [], playerCards: [] });
     expect(res.status).toBe("incomplete");
     if (res.status !== "incomplete") return;
     expect(res.need).toBe("dealerCards");
     expect(res.player).toBeNull();
-    expect(res.dealer).toBeNull();
+    // The dealer's final total has a well-defined distribution before the deal, so
+    // this is the pre-deal prior rather than a placeholder.
+    expect(res.dealer.upcard).toBeNull();
+    expect(res.dealer.outcomes.pBust).toBeGreaterThan(0);
+    expect(res.pDealerBlackjack).toBeCloseTo(2 * (32 / 416) * (128 / 415), 12);
   });
 
   it("reports incomplete when only the player has cards", () => {

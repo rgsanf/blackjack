@@ -130,15 +130,31 @@ export function analyze(state: TableState): AnalysisResult {
   const dealer = evaluateHand(state.dealerCards);
   const shoe = shoeInfo(ctx, seen);
 
-  // 3. No dealer card: nothing about the dealer is computable.
+  // 3. No dealer card: report the PRIOR — the dealer's final-total distribution before
+  //    the deal, given only what this shoe has left. Still "incomplete" because no
+  //    player EV exists without an upcard, but these odds are exact, not a placeholder.
+  //
+  //    buildSensitivities is deliberately skipped: its ten extra recomputations exist
+  //    only to price the player recursion, which cannot run here anyway.
   if (dealer.cardCount === 0) {
+    const prior = dealerDistExact(ctx);
+    assertBalanced(ctx, initialRemaining);
     return {
       status: "incomplete",
       need: "dealerCards",
       shoe,
       player: player.cardCount > 0 ? player : null,
-      dealer: null,
-      pDealerBlackjack: null,
+      dealer: {
+        value: dealer,
+        upcard: null,
+        outcomes: toOutcomes(
+          prior.dist,
+          prior.pNatural,
+          prior.pNatural > 0,
+          ctx.exhausted,
+        ),
+      },
+      pDealerBlackjack: prior.pNatural,
     };
   }
 
